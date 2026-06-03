@@ -45,7 +45,7 @@ class CustomKMeans:
                     new_centroids[k] = X[mask].mean(dim=0)
                 else:
                     # Handle empty cluster by reinitializing randomly
-                    new_centroids[k] = X[torch.randint(n_samples, (1,))]
+                    new_centroids[k] = X[torch.randint(0, n_samples, (1,)).item()]
 
             # Step 4: Check convergence
             centroid_shift = torch.max(torch.norm(new_centroids - self.centroids, dim=1))
