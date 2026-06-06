@@ -39,8 +39,7 @@ class ArxivEmbedder:
             model_name: SentenceTransformer model to use.
                         'all-MiniLM-L6-v2' is lightweight (80MB) and fast,
                         outputs 384-dim embeddings — suitable for CPU inference.
-        """
-        # Fix 3: Auto-detect device at init time for seamless CPU/GPU support
+        """  
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         print(f"Loading embedding model: {model_name} on {self.device}")
         self.model = SentenceTransformer(model_name, device=self.device)
@@ -61,7 +60,7 @@ class ArxivEmbedder:
         """
         print(f"Fetching {max_results} papers for query: '{query}'")
 
-        # Fix 1: Wrap network call in try-except to handle API failures gracefully
+         
         try:
             client = arxiv.Client()
             search = arxiv.Search(
@@ -106,7 +105,7 @@ class ArxivEmbedder:
 
         print(f"Generating embeddings for {len(texts)} papers on {self.device}...")
 
-        # Fix 3: device is handled automatically via self.model initialized on correct device
+         
         embeddings = self.model.encode(
             texts,
             convert_to_tensor=True,
