@@ -188,4 +188,3 @@ Strict Operational Instructions:
 
         answer = self.generate(query, results)
         return answer, results
-    
