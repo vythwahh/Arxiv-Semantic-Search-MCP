@@ -1,6 +1,7 @@
 import json
 import sys
 import os
+
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 from embedder import ArxivEmbedder
@@ -43,9 +44,3 @@ def fetch_and_save(output_file: str = "data/sample_papers.json", max_per_topic: 
 
 if __name__ == "__main__":
     fetch_and_save()
-import traceback
-try:
-    from embedder import ArxivEmbedder
-except Exception as e:
-    traceback.print_exc()
-    exit(1)
