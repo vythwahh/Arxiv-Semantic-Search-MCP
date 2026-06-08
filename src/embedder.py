@@ -44,6 +44,7 @@ class ArxivEmbedder:
         print(f"Loading embedding model: {model_name} on {self.device}")
         self.model = SentenceTransformer(model_name, device=self.device)
         self.model_name = model_name
+        self.device = "mps" if torch.backends.mps.is_available() else ("cuda" if torch.cuda.is_available() else "cpu")
 
     def fetch_papers(self, query: str, max_results: int = 100) -> List[Paper]:
         """
