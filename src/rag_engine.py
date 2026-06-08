@@ -31,104 +31,102 @@ class RAGPipeline:
         Query -> Embedder -> HybridSearch (Dense + TF-IDF) -> Top-k Context -> LLM -> Answer
     """
 
-from google import genai as google_genai
+    def __init__(
+        self,
+        embedder: ArxivEmbedder,
+        hybrid_search: HybridSearch,
+        model_name: str = "gemini-2.0-flash-lite",
+        top_k: int = 5,
+        max_context_papers: int = 3
+    ):
+        self.embedder = embedder
+        self.hybrid_search = hybrid_search
+        self.model_name = model_name
+        self.top_k = top_k
+        self.max_context_papers = max_context_papers
+        self.papers = []
+        self.client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
-def __init__(
-    self,
-    embedder: ArxivEmbedder,
-    hybrid_search: HybridSearch,
-    model_name: str = "gemini-2.0-flash-lite",
-    top_k: int = 5,
-    max_context_papers: int = 3
-):
-    self.embedder = embedder
-    self.hybrid_search = hybrid_search
-    self.model_name = model_name
-    self.top_k = top_k
-    self.max_context_papers = max_context_papers
-    self.papers = []
-    self.client = google_genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+    def index(self, query: str, max_results: int = 100) -> int:
+        """
+        Fetches relevant papers from arXiv API and indexes them into HybridSearch.
 
-def index(self, query: str, max_results: int = 100) -> int:
-    """
-    Fetches relevant papers from arXiv API and indexes them into HybridSearch.
+        Returns:
+            int: Total number of successfully indexed papers.
+        """
+        logger.info(f"Indexing papers for query: '{query}'")
 
-    Returns:
-        int: Total number of successfully indexed papers.
-    """
-    logger.info(f"Indexing papers for query: '{query}'")
-
-    self.papers, texts, embeddings = self.embedder.fetch_and_embed(
-        query=query,
-        max_results=max_results
-    )
-
-    if not self.papers:
-        logger.warning("No papers fetched — index remains empty.")
-        return 0
-
-    self.hybrid_search.index(texts, embeddings)
-    logger.info(f"Successfully indexed {len(self.papers)} papers.")
-    return len(self.papers)
-
-def retrieve(self, query: str) -> List[SearchResult]:
-    """
-    Retrieves top-k relevant papers using hybrid search.
-    Guards against empty index and device mismatch.
-
-    Returns:
-        List[SearchResult]: Search results sorted by descending score.
-    """
-    if not self.papers:
-        logger.warning("Retrieve called on empty index — run index() first.")
-        return []
-
-    # Encode on GPU if available, force to CPU to match HybridSearch matrix device
-    query_embedding = self.embedder.model.encode(
-        query,
-        convert_to_tensor=True,
-        device=self.embedder.device
-    ).cpu()
-
-    results = self.hybrid_search.search(
-        query=query,
-        query_embedding=query_embedding,
-        top_k=self.top_k
-    )
-
-    search_results = []
-    for rank, (idx, score) in enumerate(results):
-        if idx < len(self.papers):
-            search_results.append(SearchResult(
-                paper=self.papers[idx],
-                score=score,
-                rank=rank + 1
-            ))
-    return search_results
-
-def _build_context(self, results: List[SearchResult]) -> str:
-    """Formats top retrieved papers into structured context for LLM prompt."""
-    context_parts = []
-    for result in results[:self.max_context_papers]:
-        context_parts.append(
-            f"[Paper {result.rank}] Title: {result.paper.title}\n"
-            f"Authors: {', '.join(result.paper.authors[:3])}\n"
-            f"Abstract: {result.paper.abstract}\n"
-            f"URL: {result.paper.url}"
+        self.papers, texts, embeddings = self.embedder.fetch_and_embed(
+            query=query,
+            max_results=max_results
         )
-    return "\n\n---\n\n".join(context_parts)
 
-def generate(self, query: str, results: List[SearchResult]) -> str:
-    """
-    Synthesizes a factual response using Gemini strictly based on
-    retrieved abstracts. Implements anti-hallucination constraints.
+        if not self.papers:
+            logger.warning("No papers fetched — index remains empty.")
+            return 0
 
-    Returns:
-        str: Synthesized answer or fallback message if LLM unavailable.
-    """
-    context = self._build_context(results)
+        self.hybrid_search.index(texts, embeddings)
+        logger.info(f"Successfully indexed {len(self.papers)} papers.")
+        return len(self.papers)
 
-    prompt = f"""You are an elite expert scientific research assistant specializing in analyzing arXiv papers.
+    def retrieve(self, query: str) -> List[SearchResult]:
+        """
+        Retrieves top-k relevant papers using hybrid search.
+        Guards against empty index and device mismatch.
+
+        Returns:
+            List[SearchResult]: Search results sorted by descending score.
+        """
+        if not self.papers:
+            logger.warning("Retrieve called on empty index — run index() first.")
+            return []
+
+        # Encode on GPU if available, force to CPU to match HybridSearch matrix device
+        query_embedding = self.embedder.model.encode(
+            query,
+            convert_to_tensor=True,
+            device=self.embedder.device
+        ).cpu()
+
+        results = self.hybrid_search.search(
+            query=query,
+            query_embedding=query_embedding,
+            top_k=self.top_k
+        )
+
+        search_results = []
+        for rank, (idx, score) in enumerate(results):
+            if idx < len(self.papers):
+                search_results.append(SearchResult(
+                    paper=self.papers[idx],
+                    score=score,
+                    rank=rank + 1
+                ))
+        return search_results
+
+    def _build_context(self, results: List[SearchResult]) -> str:
+        """Formats top retrieved papers into structured context for LLM prompt."""
+        context_parts = []
+        for result in results[:self.max_context_papers]:
+            context_parts.append(
+                f"[Paper {result.rank}] Title: {result.paper.title}\n"
+                f"Authors: {', '.join(result.paper.authors[:3])}\n"
+                f"Abstract: {result.paper.abstract}\n"
+                f"URL: {result.paper.url}"
+            )
+        return "\n\n---\n\n".join(context_parts)
+
+    def generate(self, query: str, results: List[SearchResult]) -> str:
+        """
+        Synthesizes a factual response using Gemini strictly based on
+        retrieved abstracts. Implements anti-hallucination constraints.
+
+        Returns:
+            str: Synthesized answer or fallback message if LLM unavailable.
+        """
+        context = self._build_context(results)
+
+        prompt = f"""You are an elite expert scientific research assistant specializing in analyzing arXiv papers.
 Your task is to provide a concise, accurate synthesized answer to the user query strictly based on the retrieved context papers provided below.
 
 Query: {query}
@@ -143,34 +141,34 @@ Strict Operational Instructions:
 4. Maintain a formal scientific tone, cite specific paper titles when drawing insights, and keep the response under 250 words.
 """
 
-    try:
-        time.sleep(3)  # Respect free tier rate limits
-        response = self.client.models.generate_content(
-            model=self.model_name,
-            contents=prompt
-        )
-        return response.text
+        try:
+            time.sleep(3)
+            response = self.client.models.generate_content(
+                model=self.model_name,
+                contents=prompt
+            )
+            return response.text
 
-    except Exception as e:
-        logger.error(f"LLM generation failed: {e}")
-        return (
-            f"[System Notice: LLM Generation temporarily unavailable]. "
-            f"Top retrieved source: {results[0].paper.title if results else 'No results found'}"
-        )
+        except Exception as e:
+            logger.error(f"LLM generation failed: {e}")
+            return (
+                f"[System Notice: LLM Generation temporarily unavailable]. "
+                f"Top retrieved source: {results[0].paper.title if results else 'No results found'}"
+            )
 
-def search_and_generate(self, query: str) -> Tuple[str, List[SearchResult]]:
-    """
-    Executes full end-to-end RAG pipeline: retrieval then generation.
+    def search_and_generate(self, query: str) -> Tuple[str, List[SearchResult]]:
+        """
+        Executes full end-to-end RAG pipeline: retrieval then generation.
 
-    Returns:
-        Tuple[str, List[SearchResult]]: Answer and source citations used.
-    """
-    logger.info(f"Running full RAG pipeline for query: '{query}'")
+        Returns:
+            Tuple[str, List[SearchResult]]: Answer and source citations used.
+        """
+        logger.info(f"Running full RAG pipeline for query: '{query}'")
 
-    results = self.retrieve(query)
+        results = self.retrieve(query)
 
-    if not results:
-        return "No relevant indexed papers found. Please ensure the repository is indexed correctly.", []
+        if not results:
+            return "No relevant indexed papers found. Please ensure the repository is indexed correctly.", []
 
-    answer = self.generate(query, results)
-    return answer, results
+        answer = self.generate(query, results)
+        return answer, results
