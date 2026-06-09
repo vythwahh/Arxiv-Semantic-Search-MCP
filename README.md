@@ -16,8 +16,6 @@ The system:
 
 ---
 
----
-
 ## Architecture
 
 ```text
@@ -43,7 +41,7 @@ User Behavior Layer (Background):
     K-Means Clustering (≥10 actions) → interest_centroids
         ↓
     Cron Worker (hourly) → arXiv scan → Batch Cosine Similarity → Notification
-
+```
 ---
 
 ## Custom Implementations (No Black-Box Wrappers)
