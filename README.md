@@ -16,14 +16,17 @@ The system:
 
 ---
 
+---
+
 ## Architecture
 
+```text
 User Query
     ↓
 SentenceTransformer (PyTorch) → Query Embedding
     ↓
 Hybrid Search:
-    ├── Dense Path: Cosine Similarity on L2-normalized embeddings
+    ├── Dense Path:  Cosine Similarity on L2-normalized embeddings
     └── Lexical Path: Custom TF-IDF with PyTorch Sparse Tensor
     ↓
 Final Score = α × Dense + (1-α) × Lexical
