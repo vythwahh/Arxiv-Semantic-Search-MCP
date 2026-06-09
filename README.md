@@ -1,4 +1,4 @@
-Đây, full README updated với User Behavior Modeling layer:
+ 
 
 ````markdown
 # ArXiv Semantic Search MCP
