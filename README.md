@@ -54,6 +54,9 @@ MCP Server → AI Agent ready
 - **arXiv API** — real-time paper fetching
 
 ## Project Structure
+## Project Structure
+
+```
 arxiv-semantic-search-mcp/
 ├── src/
 │   ├── vector_ops.py
@@ -69,7 +72,7 @@ arxiv-semantic-search-mcp/
 ├── test_pipeline.py
 ├── .env.example
 └── requirements.txt
-
+```
 ## Setup
 git clone https://github.com/vythwahh/Arxiv-Semantic-Search-MCP.git
 cd Arxiv-Semantic-Search-MCP
