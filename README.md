@@ -16,7 +16,6 @@ The system:
 
 ---
 
-
 ## Architecture
 
 User Query  
@@ -41,8 +40,6 @@ EMA Profile Update -> global_profile_tensor
 K-Means Clustering (>=10 actions) -> interest_centroids  
 ↓  
 Cron Worker (hourly) -> arXiv scan -> Batch Cosine Similarity -> Notification  
-
----
 
 ---
 
