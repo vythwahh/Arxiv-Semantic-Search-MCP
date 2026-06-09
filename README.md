@@ -87,27 +87,26 @@ Background worker: runs hourly, fetches 20 new arXiv papers, computes batch cosi
 
 ## Project Structure
 
-text
-arxiv-semantic-search-mcp/
-├── src/
-│   ├── vector_ops.py       # Custom cosine similarity, L2 normalization
-│   ├── pca.py              # Custom PCA via SVD
-│   ├── kmeans.py           # Custom K-Means clustering
-│   ├── hybrid_search.py    # TF-IDF + dense hybrid search engine
-│   ├── embedder.py         # arXiv paper fetcher + SentenceTransformer
-│   ├── rag_engine.py       # RAG pipeline with Groq/Llama 3.1
-│   ├── mcp_server.py       # MCP Server exposing 3 tools
-│   ├── user_profile.py     # EMA user profile + K-Means interest clustering
-│   └── cron_worker.py      # Async background worker for paper notifications
-├── scripts/
-│   └── fetch_sample_data.py
-├── data/
-├── test_pipeline.py
-├── test_behavior.py
-├── test_worker.py
-├── .env.example
-└── requirements.txt
-
+* **arxiv-semantic-search-mcp/**
+  * **src/** (Core modules)
+    * `vector_ops.py` - Custom cosine similarity and L2 normalization
+    * `pca.py` - Custom PCA dimensionality reduction via SVD
+    * `kmeans.py` - Custom K-Means clustering algorithm
+    * `hybrid_search.py` - Dual-path TF-IDF + Dense hybrid search engine
+    * `embedder.py` - arXiv paper fetcher and SentenceTransformer embedding integration
+    * `rag_engine.py` - RAG pipeline using Groq and Llama 3.1
+    * `mcp_server.py` - Model Context Protocol server exposing core tools
+    * `user_profile.py` - Dynamic interest tracking via EMA and K-Means
+    * `cron_worker.py` - Async background worker for proactive notifications
+  * **scripts/**
+    * `fetch_sample_data.py` - Script to download initial dataset
+  * **Other Files:**
+    * `data/` - Local directory storing indexed papers and vector data
+    * `test_pipeline.py` - Integration testing for the search path
+    * `test_behavior.py` - Testing user interaction and profile generation
+    * `test_worker.py` - Verification script for the background simulation
+    * `.env.example` - Template for environmental variables
+    * `requirements.txt` - Python package dependencies
 ---
 
 ## Setup
