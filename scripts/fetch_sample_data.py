@@ -1,49 +1,48 @@
 import sys
 import json
-import os
-import time
+sys.path.append("src")
 
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
-from embedder import ArxivEmbedder
+from embedder import ArxivEmbedder, Paper
+from hybrid_search import HybridSearch
+from rag_engine import RAGPipeline
 
-TOPICS = [
-    "large language models",
-    "LLM reasoning",
-    "LLM fine-tuning",
-    "prompt engineering",
-    "retrieval augmented generation"
-]
+embedder = ArxivEmbedder()
+hybrid_search = HybridSearch(alpha=0.7)
+pipeline = RAGPipeline(
+    embedder=embedder,
+    hybrid_search=hybrid_search,
+    top_k=5,
+    max_context_papers=3
+)
 
-def fetch_and_save(output_file: str = "scripts/data/sample_papers.json", max_per_topic: int = 150):
-    embedder = ArxivEmbedder()
-    all_papers = []
-    seen_ids = set()
+with open("scripts/data/sample_papers.json", "r", encoding="utf-8") as f:
+    raw_data = json.load(f)
 
-    for topic in TOPICS:
-        print(f"\n🚀 Dang tien hanh cao chu de: '{topic}'...")
-        papers = embedder.fetch_papers(query=topic, max_results=max_per_topic)
+papers_to_index = []
+for p in raw_data:
+    papers_to_index.append(Paper(
+        paper_id=p["paper_id"],
+        title=p["title"],
+        abstract=p["abstract"],
+        authors=p["authors"],
+        url=p["url"],
+        published=p["published"]
+    ))
 
-        for p in papers:
-            if p.paper_id not in seen_ids:
-                seen_ids.add(p.paper_id)
-                all_papers.append({
-                    "paper_id": p.paper_id,
-                    "title": p.title,
-                    "abstract": p.abstract,
-                    "authors": p.authors,
-                    "url": p.url,
-                    "published": p.published,
-                    "topic": topic
-                })
-        
-        print(f"-> Gom duoc {len(papers)} bai cho '{topic}'. Nghi tay 3 giay...")
-        time.sleep(3)
+print(f"Total papers loaded from JSON: {len(papers_to_index)}")
 
-    os.makedirs(os.path.dirname(output_file), exist_ok=True)
-    with open(output_file, "w", encoding="utf-8") as f:
-        json.dump(all_papers, f, indent=2, ensure_ascii=False)
+texts = [f"{p.title}. {p.abstract}" for p in papers_to_index]
+_, embeddings = pipeline.embedder.embed_papers(papers_to_index)
 
-    print(f"\n XONNG ROII! Da luu tong cong {len(all_papers)} unique papers vao file {output_file}")
+pipeline.papers = papers_to_index
+pipeline.hybrid_search.index(texts, embeddings)
+print("Data indexing completed successfully.")
 
-if __name__ == "__main__":
-    fetch_and_save()
+print("\n RETRIEVAL TEST ")
+results = pipeline.retrieve("how do LLMs handle reasoning?")
+for r in results:
+    print(f"[{r.rank}] {r.paper.title} ({r.score:.4f})")
+
+print("\n RAG GENERATION TEST ")
+answer, _ = pipeline.search_and_generate("what are the main safety alignment techniques for large language models?")
+print(f"Answer:\n{answer}")
