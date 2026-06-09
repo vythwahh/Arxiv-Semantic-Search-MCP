@@ -87,6 +87,7 @@ Background worker: runs hourly, fetches 20 new arXiv papers, computes batch cosi
 
 ## Project Structure
 
+```text
 arxiv-semantic-search-mcp/
 ├── src/
 │   ├── vector_ops.py       # Custom cosine similarity, L2 normalization
