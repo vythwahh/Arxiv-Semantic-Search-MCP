@@ -16,31 +16,33 @@ The system:
 
 ---
 
+
 ## Architecture
 
-```text
-User Query
-    ↓
-SentenceTransformer (PyTorch) → Query Embedding
-    ↓
-Hybrid Search:
-    ├── Dense Path:  Cosine Similarity on L2-normalized embeddings
-    └── Lexical Path: Custom TF-IDF with PyTorch Sparse Tensor
-    ↓
-Final Score = α × Dense + (1-α) × Lexical
-    ↓
-Top-k Papers → LLM (Groq/Llama 3.1) → Synthesized Answer
-    ↓
-MCP Server → AI Agent ready
+User Query  
+↓  
+SentenceTransformer (PyTorch) -> Query Embedding  
+↓  
+Hybrid Search:  
++-- Dense Path: Cosine Similarity on L2-normalized embeddings  
++-- Lexical Path: Custom TF-IDF with PyTorch Sparse Tensor  
+↓  
+Final Score = a * Dense + (1-a) * Lexical  
+↓  
+Top-k Papers -> LLM (Groq/Llama 3.1) -> Synthesized Answer  
+↓  
+MCP Server -> AI Agent ready  
 
-User Behavior Layer (Background):
-    User Actions (Search/Click/RAG)
-        ↓
-    EMA Profile Update → global_profile_tensor
-        ↓
-    K-Means Clustering (≥10 actions) → interest_centroids
-        ↓
-    Cron Worker (hourly) → arXiv scan → Batch Cosine Similarity → Notification```
+User Behavior Layer (Background):  
+User Actions (Search/Click/RAG)  
+↓  
+EMA Profile Update -> global_profile_tensor  
+↓  
+K-Means Clustering (>=10 actions) -> interest_centroids  
+↓  
+Cron Worker (hourly) -> arXiv scan -> Batch Cosine Similarity -> Notification  
+
+---
 
 ---
 
