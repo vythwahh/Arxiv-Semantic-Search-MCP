@@ -18,29 +18,21 @@ The system:
 
 ## Architecture
 
-User Query  
-↓  
-SentenceTransformer (PyTorch) -> Query Embedding  
-↓  
-Hybrid Search:  
-+-- Dense Path: Cosine Similarity on L2-normalized embeddings  
-+-- Lexical Path: Custom TF-IDF with PyTorch Sparse Tensor  
-↓  
-Final Score = a * Dense + (1-a) * Lexical  
-↓  
-Top-k Papers -> LLM (Groq/Llama 3.1) -> Synthesized Answer  
-↓  
-MCP Server -> AI Agent ready  
+### 1. Real-time Search & Inference Pipeline
+* **User Query Input**: The system receives a natural language query from the user or AI agent.
+* **Vector Embedding Generation**: The query is processed via `SentenceTransformer` (PyTorch) to generate a dense query embedding vector.
+* **Dual-Path Hybrid Search Execution**:
+  * **Dense Retrieval Path**: Computes exact Cosine Similarity scores against indexed papers using L2-normalized embedding vectors.
+  * **Lexical Retrieval Path**: Computes sparse keyword matching scores using a custom TF-IDF implementation powered by PyTorch Sparse Tensors.
+* **Hybrid Scoring Fusion**: Integrates both paths to calculate a comprehensive relevance rating based on the formula: `Final Score = α * Dense + (1-α) * Lexical`.
+* **RAG Context Synthesis**: Retrieves top-k relevant papers and forwards them as context to the LLM (Groq / Llama 3.1) to generate a synthesized, citation-grounded response.
+* **MCP Server Tool Exposure**: Exposes the entire pipeline as a unified protocol ready for direct consumption by any AI Agent system.
 
-User Behavior Layer (Background):  
-User Actions (Search/Click/RAG)  
-↓  
-EMA Profile Update -> global_profile_tensor  
-↓  
-K-Means Clustering (>=10 actions) -> interest_centroids  
-↓  
-Cron Worker (hourly) -> arXiv scan -> Batch Cosine Similarity -> Notification  
-
+### 2. Dynamic User Behavior & Background Notification Layer
+* **User Interaction Capture**: Tracks ongoing user behaviors including search queries, document clicks, and RAG interaction logs.
+* **Cold-Start Profile Tracking**: Dynamically updates a single user interest profile (`global_profile_tensor`) using an Exponential Moving Average (EMA) formulation.
+* **Multi-Interest Topic Clustering**: Triggers K-Means clustering once the history surpasses 10 distinct actions to construct precise topic interest centroids.
+* **Asynchronous Cron Worker Processing**: Executes scheduled background scans hourly to fetch newly published arXiv papers, evaluates batch matrix cosine similarities against the user's active interest profiles, and dispatches real-time automated notifications for matching articles.
 ---
 
 ## Custom Implementations (No Black-Box Wrappers)
