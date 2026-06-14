@@ -6,7 +6,7 @@ from pathlib import Path
 from datetime import datetime
 from contextlib import contextmanager
 from typing import Optional
-
+ 
 
 DB_PATH = Path(__file__).resolve().parent.parent / "data" / "behavior_events.db"
 SCHEMA_PATH = Path(__file__).resolve().parent / "schema.sql"

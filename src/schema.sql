@@ -3,7 +3,7 @@ CREATE TABLE IF NOT EXISTS users (
     email TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
-
+ 
 CREATE TABLE IF NOT EXISTS search_sessions (
     session_id TEXT PRIMARY KEY,
     user_id TEXT NOT NULL,
