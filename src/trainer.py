@@ -6,7 +6,7 @@ from typing import Optional
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
-
+from pytz import utc
 from interest_model import InterestModel, DB_PATH, MODEL_PATH
 
 
@@ -35,6 +35,7 @@ def retrain_user(
     Returns a summary dict with user_id, loss trajectory, and timestamp.
     """
     logger.info(f"Retraining model for user: {user_id}")
+    
     model = InterestModel(user_id=user_id, db_path=db_path, model_path=model_path)
 
     loaded = model.load()
@@ -134,10 +135,10 @@ class NightlyTrainer:
         )
 
     def start(self) -> None:
-        self._scheduler = BackgroundScheduler()
+        self._scheduler = BackgroundScheduler(timezone=utc)
         self._scheduler.add_job(
             self._job,
-            trigger=CronTrigger(hour=self.hour, minute=self.minute),
+            trigger=CronTrigger(hour=self.hour, minute=self.minute, timezone=utc),
             id="nightly_retrain",
             name="Nightly interest model retrain",
             replace_existing=True,
@@ -170,6 +171,8 @@ if __name__ == "__main__":
     """
     import sys
     db = Path(sys.argv[1]) if len(sys.argv) > 1 else DB_PATH
-    results = retrain_all(embedder=None, db_path=db)
+    from embedder import ArxivEmbedder
+    embedder = ArxivEmbedder()
+    results = retrain_all(embedder=embedder, db_path=db)
     for r in results:
         print(r)
