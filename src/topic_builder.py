@@ -100,7 +100,7 @@ class TopicVocab:
             freq: dict[str, int] = defaultdict(int)
             for t in tokens:
                 freq[t] += 1
-            read_weight = min(math.log1p(read_seconds + 1), 3.0)
+            read_weight = min(math.log1p(read_seconds), 3.0)
             doc_term_freq.append((freq, read_weight))
 
         n_docs = len(doc_term_freq)
@@ -116,19 +116,20 @@ class TopicVocab:
                 tf = count / total_tokens
                 idf = math.log((n_docs + 1) / (doc_count[term] + 1)) + 1.0
                 tfidf[term] += tf * idf * read_weight
-
+        if tfidf:
+            total_tfidf = sum(tfidf.values())
+            if total_tfidf > 0:
+                tfidf = {term: score / total_tfidf for term, score in tfidf.items()}
         return dict(tfidf)
 
     def _embed_vocab(self, embedder) -> torch.Tensor:
-        phrase_inputs = []
-        for term in self.vocab:
-            score = self.tfidf_scores.get(term, 1.0)
-            phrase_inputs.append(term)
+        phrase_inputs = [term for term in self.vocab]
 
         raw = embedder.model.encode(
             phrase_inputs,
             convert_to_tensor=True,
             show_progress_bar=False,
+            device = next(embedder.model.parameters()).device
         )
         normalized = torch.stack([l2_normalize(v) for v in raw])
         return normalized
@@ -140,10 +141,14 @@ class TopicVocab:
         """
         if self.topic_vectors is None or not self.vocab:
             return None
+        device = self.topic_vectors.device
         weights = torch.tensor(
+             
             [self.tfidf_scores.get(t, 0.0) for t in self.vocab],
             dtype=torch.float32,
+            device=device
         )
+        
         weights = weights / (weights.sum() + 1e-8)
         weighted = (self.topic_vectors * weights.unsqueeze(1)).sum(dim=0)
         return l2_normalize(weighted)
@@ -154,3 +159,4 @@ class TopicVocab:
             "top_10_topics": self.vocab[:10],
             "has_vectors": self.topic_vectors is not None,
         }
+  

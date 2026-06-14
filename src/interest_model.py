@@ -1,3 +1,5 @@
+import math
+
 import torch
 import torch.nn as nn
 import sqlite3
@@ -135,41 +137,32 @@ class InterestModel:
         sessions = self._load_sessions()
         if not sessions:
             return
-
-        X = self._normalize_signals(sessions)
-        self.encoder.eval()
-        with torch.no_grad():
-            scores = self.encoder(X).squeeze(1)
-
-        with sqlite3.connect(self.db_path) as conn:
-            conn.row_factory = sqlite3.Row
-            interactions = conn.execute(
-                """SELECT paper_abstract, paper_categories, read_seconds
-                   FROM paper_interactions
-                   WHERE user_id = ? AND paper_abstract != ''""",
-                (self.user_id,)
-            ).fetchall()
-
         if embedder is not None:
-            for i, session in enumerate(sessions):
-                signal_vec = X[i]
-                interest_score = scores[i].item()
-
-                action_vec = signal_vec.clone()
-                self.profile.log_action(action_vec, weight=interest_score)
-
+            X = self._normalize_signals(sessions)
+            self.encoder.eval()
+            with torch.no_grad():
+                scores = self.encoder(X).squeeze(1)
+            with sqlite3.connect(self.db_path) as conn:
+                conn.row_factory = sqlite3.Row
+                interactions = conn.execute(
+                    """SELECT paper_abstract, paper_categories, read_seconds
+                       FROM paper_interactions
+                       WHERE user_id = ? AND paper_abstract != ''""",
+                    (self.user_id,)
+                ).fetchall()
             for row in interactions:
                 text = f"{row['paper_categories']} {row['paper_abstract']}"
                 embedding = embedder.model.encode(
                     text,
                     convert_to_tensor=True,
                     show_progress_bar=False,
+                     
                 )
-                read_weight = min(row["read_seconds"] / 60.0 + SIGNAL_WEIGHTS["read"], 2.0)
+                read_weight = min(math.log1p(row["read_seconds"]) * SIGNAL_WEIGHTS["read"], 3.0)
                 self.profile.log_action(embedding, weight=read_weight)
-
         self.topic_vocab = TopicVocab(db_path=self.db_path)
         self.topic_vocab.build(self.user_id, embedder=embedder)
+         
 
     def score_paper(self, paper_embedding: torch.Tensor) -> float:
         """
@@ -185,13 +178,14 @@ class InterestModel:
         scores = []
 
         if self.profile.global_profile_tensor is not None:
-            sim = torch.dot(paper_vec, self.profile.global_profile_tensor).item()
+            global_vec = self.profile.global_profile_tensor.to(paper_vec.device).float()
+            sim = torch.dot(paper_vec, global_vec).item()
             scores.append((sim + 1.0) / 2.0)
 
         if self.topic_vocab is not None:
             user_topic_vec = self.topic_vocab.get_weighted_user_vector()
             if user_topic_vec is not None:
-                user_topic_vec = user_topic_vec.to(paper_vec.device)
+                user_topic_vec = user_topic_vec.to(paper_vec.device).float()
                 sim = torch.dot(paper_vec, user_topic_vec).item()
                 scores.append((sim + 1.0) / 2.0)
 
