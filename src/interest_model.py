@@ -131,38 +131,57 @@ class InterestModel:
 
     def ingest_from_db(self, embedder=None) -> None:
         """
-        Reads all behavior events from DB, feeds them into UserBehaviorProfile,
-        and builds TopicVocab (with embeddings if embedder is provided).
+        Reads all behavior events from DB, feeds them into UserBehaviorProfile
+        using combined session and interaction weights, and builds TopicVocab.
         """
         sessions = self._load_sessions()
         if not sessions:
             return
+            
         if embedder is not None:
             X = self._normalize_signals(sessions)
             self.encoder.eval()
             with torch.no_grad():
                 scores = self.encoder(X).squeeze(1)
+                
+             
+            session_scores = {
+                s["session_id"]: scores[i].item()
+                for i, s in enumerate(sessions)
+            }
+            
             with sqlite3.connect(self.db_path) as conn:
                 conn.row_factory = sqlite3.Row
+                
                 interactions = conn.execute(
-                    """SELECT paper_abstract, paper_categories, read_seconds
+                    """SELECT session_id, paper_abstract, paper_categories, read_seconds
                        FROM paper_interactions
                        WHERE user_id = ? AND paper_abstract != ''""",
                     (self.user_id,)
                 ).fetchall()
+                
             for row in interactions:
                 text = f"{row['paper_categories']} {row['paper_abstract']}"
                 embedding = embedder.model.encode(
                     text,
                     convert_to_tensor=True,
                     show_progress_bar=False,
-                     
                 )
-                read_weight = min(math.log1p(row["read_seconds"]) * SIGNAL_WEIGHTS["read"], 3.0)
-                self.profile.log_action(embedding, weight=read_weight)
+                
+ 
+                interest_score = session_scores.get(row["session_id"], 0.5)
+                
+                
+                read_weight = min(math.log1p(row["read_seconds"]) * SIGNAL_WEIGHTS["read"], 2.0)
+                
+ 
+                combined_weight = interest_score * read_weight
+                
+ 
+                self.profile.log_action(embedding, weight=combined_weight)
+                
         self.topic_vocab = TopicVocab(db_path=self.db_path)
         self.topic_vocab.build(self.user_id, embedder=embedder)
-         
 
     def score_paper(self, paper_embedding: torch.Tensor) -> float:
         """
